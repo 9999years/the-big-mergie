@@ -11,6 +11,13 @@ class Commit:
     commit_date: datetime
     repository: str
 
+    @property
+    def abbrhash(self) -> str:
+        return self.hash[:8]
+
+    def __str__(self) -> str:
+        return f"{self.abbrhash} from {self.repository}"
+
     def show_patch(self):
         bash(
             f"""

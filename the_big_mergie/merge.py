@@ -1,8 +1,9 @@
 import subprocess
+import argparse
 
 from .statistics import data_for_all_repos, Commit
 from .util import ALL_REPOS, RESULT_REPO, bash
-from .color import BRIGHT_CYAN, CYAN, BOLD, RESET
+from .color import BRIGHT_CYAN, CYAN, BOLD, RESET, RED
 
 
 def commits_old_to_new() -> list[Commit]:
@@ -90,6 +91,9 @@ def finish_up():
 
 
 def on_conflict(commit: Commit):
+    print(
+        f"{BOLD}{RED}Failure applying {commit.abbrhash} from {commit.repository}{RESET}"
+    )
     bash(
         rf"""
         git am --show-current-patch=diff
@@ -103,38 +107,47 @@ def on_conflict(commit: Commit):
 
 
 def main():
-    applied_commits: dict[int, Commit] = {}
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--continue", action="store", dest="continue_hash")
+    args = parser.parse_args()
+
     commits = commits_old_to_new()
     print(len(commits), "commits")
-    init_repo()
-    print("repo initialized")
+
+    if args.continue_hash:
+        all_commits = commits
+        commits = []
+        found_commit = False
+        for commit in all_commits:
+            if found_commit:
+                commits.append(commit)
+            elif commit.hash == args.continue_hash:
+                found_commit = True
+    else:
+        init_repo()
+        print("Repo initialized")
+
+    total_commits = len(commits)
+    skipped = 0
+
     i = 0
     for commit in commits:
         i += 1
-        #  print(
-        #  f"{BRIGHT_CYAN}{BOLD}{commit.hash} in {commit.repository} {'=' * 30}{RESET}"
-        #  )
-        #  print(f"{CYAN}{i}/{len(commits)} = {format(i / len(commits), '.2%')}{RESET}")
+        print(
+            f"{BRIGHT_CYAN}{BOLD}{commit}{RESET} {CYAN}{i}/{total_commits}",
+            "=",
+            f"{format((i - skipped) / len(commits), '.2%')},",
+            "skipped",
+            skipped,
+            f"{BOLD}{'=' * 30}{RESET}",
+        )
 
         patch = commit.get_patch()
         if not patch:
-            print(
-                f"{BRIGHT_CYAN}{BOLD}Skipping empty commit {commit.hash} in {commit.repository}{RESET}"
-            )
-            continue
-        patch_hash = hash(patch)
-
-        if patch_hash in applied_commits:
-            print(
-                f"{BRIGHT_CYAN}{BOLD}Skipping already applied commit {commit.hash} in {commit.repository}{RESET}"
-            )
-            equiv = applied_commits[patch_hash]
-            print(
-                f"{BRIGHT_CYAN}{BOLD}Equivalent to {equiv.hash} in {equiv.repository}{RESET}"
-            )
+            print(f"{BRIGHT_CYAN}{BOLD}Skipping empty commit {commit}{RESET}")
+            skipped += 1
             continue
 
-        applied_commits[patch_hash] = commit
         try:
             commit.apply_to(RESULT_REPO)
         except subprocess.CalledProcessError:
