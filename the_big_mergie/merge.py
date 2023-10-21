@@ -73,7 +73,7 @@ def init_repo():
             echo "Initializing {repo}"
             git remote add {repo} ../{repo}
             git fetch {repo}
-            ../rerere-train.sh remotes/{repo}/main 2>1&>/dev/null
+            ../rerere-train.sh remotes/{repo}/main >/dev/null 2>&1
             """,
             cwd=RESULT_REPO,
         )
@@ -100,10 +100,18 @@ def on_conflict(commit: Commit):
         """,
         cwd=RESULT_REPO,
     )
-    #  subprocess.run(["fish"], cwd=RESULT_REPO, check=True)
-    #  subprocess.run(
-    #  ["bash", "-c", "git am --continue"], cwd=RESULT_REPO, check=True
-    #  )
+    while True:
+        response = input(f"{BOLD}{CYAN}fix, quit, skip? {RESET}").lower()
+        if response.startswith("f"):
+            subprocess.run(["fish"], cwd=RESULT_REPO, check=True)
+            break
+        elif response.startswith("q"):
+            raise RuntimeError
+        elif response.startswith("s"):
+            bash("git am --skip", cwd=RESULT_REPO)
+            break
+        else:
+            print("Uhh idk what to do with that sry haha")
 
 
 def main():
