@@ -1,0 +1,19 @@
+`nix-config` is a hash-for-hash subset of `configuration`
+
+`configuration` only has a handful of (unique...) commits:
+* e267f7c (HEAD -> main, origin/pre-lua-nvim-config, origin/main, origin/HEAD) So it really is named fish_plugins now
+* 083c1e9 remove most dotfiles
+* 6fbc2e3 nix: -drm_info: broken
+* 0350ed0 nix: update touchpad scroll setting to new name
+* a1699ae gitconfig: fsck objects, no git/http protocol
+* 2f9e75f dotfiles: nvim symlink
+* 3eca999 vim: -apl plugin
+* f0c4a9d vim: nix snippets
+* 66404e7 git: fix templating, no blame.ignoreRevsFile
+* e22b0f5 gitignore: don't ignore package-lock.json
+* 78d723f dotfiles: move chezmoi init file
+* 0fdfecb dotfiles: improve chezmoi init file
+* b21f419 stub readme
+*-----.   05c3429 Merge bootstrap, dotfiles, nix, and nvim
+|\ \ \ \
+| | | | * 7b2267d nvim: move to subdir

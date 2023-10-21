@@ -15,6 +15,8 @@
     devShells = forAllSystems (pkgs: {
       default = pkgs.mkShell {
         packages = [
+          pkgs.patchutils
+          pkgs.pyright
           (
             pkgs.python3.withPackages (pyPkgs: [
               pyPkgs.black

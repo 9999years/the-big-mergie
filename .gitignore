@@ -1,4 +1,9 @@
+# The repos
 /configuration
 /dotfiles
 /old-vimfiles
 /nix-config
+
+# Various generated files
+/data
+/the_cake
