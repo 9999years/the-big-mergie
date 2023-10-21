@@ -1,7 +1,6 @@
 import subprocess
-import sys
 
-from .statistics import data_for_all_repos, Commit
+from .statistics import ALL_REPOS, data_for_all_repos, Commit
 
 RESULT_REPO = "the_cake"
 
@@ -67,8 +66,24 @@ def init_repo():
             + f" && mkdir {RESULT_REPO}"
             + f" && cd {RESULT_REPO}"
             + " && git init .",
-        ]
+        ],
+        check=True,
     )
+    for repo in ALL_REPOS:
+        subprocess.run(
+            [
+                "bash",
+                "-c",
+                f"cd {RESULT_REPO}"
+                + " && git remote add "
+                + repo
+                + "../"
+                + repo
+                + " && git fetch "
+                + repo,
+            ],
+            check=True,
+        )
 
 
 def finish_up():
@@ -88,14 +103,15 @@ def main():
     print(len(commits), "commits")
     init_repo()
     print("repo initialized")
+    i = 0
     for commit in commits:
+        i += 1
         print(commit.hash, "in", commit.repository, "=" * 30)
+        print(i, "/", len(commits), "=", format(i / len(commits), ".2%"))
         patch = commit.get_patch()
         if not patch:
             print("skipping empty commit")
             continue
-        sys.stdout.buffer.write(patch)
-        sys.stdout.write("\n")
         patch_hash = hash(patch)
         if patch_hash in diff_hashes:
             print(
@@ -117,7 +133,14 @@ def main():
             #  commit.author_date,
             #  )
             diff_hashes.add(patch_hash)
-            commit.apply_to(RESULT_REPO)
+            try:
+                commit.apply_to(RESULT_REPO)
+            except subprocess.CalledProcessError:
+                print("Fix the conflicts and exit to continue!")
+                subprocess.run(["fish"], cwd=RESULT_REPO, check=True)
+                subprocess.run(
+                    ["bash", "-c", "git am --continue"], cwd=RESULT_REPO, check=True
+                )
     finish_up()
 
 

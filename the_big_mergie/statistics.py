@@ -40,7 +40,7 @@ class Commit:
                 + "if git rev-parse "
                 + self.hash
                 + "^2 >/dev/null 2>/dev/null\n then\n "
-                + "  git diff-tree -p "
+                + "  git diff-tree -p -c "
                 + self.hash
                 + " > xxx-patch\n "
                 + "else\n"
@@ -66,9 +66,11 @@ class Commit:
                 + self.repository
                 + " && git format-patch -1 "
                 + self.hash
-                + " --stdout",
+                + " --stdout > ../"
+                + "/data/"
+                + self.repository
+                + ".patch",
             ],
-            capture_output=True,
             check=True,
         )
         subprocess.run(
@@ -77,7 +79,9 @@ class Commit:
                 "-c",
                 "set -e\ncd "
                 + path
-                + "\nif git am\nthen\nexit 0\nelse\ngit am --show-current-patch=diff\nexit 1\nfi",
+                + " && git am --ignore-whitespace -3 ../data/"
+                + self.repository
+                + ".patch",
             ],
             check=True,
             input=patch.stdout,
