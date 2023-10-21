@@ -63,8 +63,9 @@ def init_repo():
         rf"""
         rm -rf {RESULT_REPO}
         mkdir {RESULT_REPO}
-        cd {RESULT_REPO}
+        cd {RESULT_REPO} || exit 1
         git init .
+        git switch -c rerere-training
         """
     )
     for repo in ALL_REPOS:
@@ -77,6 +78,13 @@ def init_repo():
             """,
             cwd=RESULT_REPO,
         )
+    bash(
+        rf"""
+        git switch main
+        git log --oneline --graph
+        """,
+        cwd=RESULT_REPO,
+    )
 
 
 def finish_up():
