@@ -2,7 +2,7 @@ import subprocess
 import argparse
 
 from .statistics import data_for_all_repos, Commit
-from .util import ALL_REPOS, RESULT_REPO, bash
+from .util import ALL_REPOS, RERE_CACHE, RESULT_REPO, bash, RERE_CACHE
 from .color import BRIGHT_CYAN, CYAN, BOLD, RESET, RED
 
 
@@ -114,6 +114,21 @@ def on_conflict(commit: Commit):
             print("Uhh idk what to do with that sry haha")
 
 
+def save_rerere():
+    bash(
+        rf"""
+        if [[ ! -d {RERE_CACHE} ]]; then
+            mkdir -p {RERE_CACHE}
+            pushd {RERE_CACHE} || exit 1
+            git init .
+            popd || exit 1
+        fi
+        cd {RERE_CACHE} || exit 1
+        ../../rerere-train.sh main
+        """
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue", action="store", dest="continue_hash")
@@ -169,4 +184,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
+        save_rerere()
         print(str(e))

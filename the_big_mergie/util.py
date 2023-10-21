@@ -2,8 +2,8 @@ import subprocess
 from .color import BRIGHT_RED, BOLD, RESET, DIM
 
 ALL_REPOS = ["configuration", "dotfiles", "nix-config", "old-vimfiles"]
-
 RESULT_REPO = "cake"
+RERE_CACHE = "data/rerecache"
 
 
 def bash(
