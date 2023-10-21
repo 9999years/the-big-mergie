@@ -17,6 +17,8 @@
         packages = [
           pkgs.patchutils
           pkgs.pyright
+          pkgs.gitAndTools.delta
+          pkgs.git
           (
             pkgs.python3.withPackages (pyPkgs: [
               pyPkgs.black

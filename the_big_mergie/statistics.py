@@ -1,97 +1,9 @@
-from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
 from typing import cast
-import subprocess
-import tempfile
 
-ALL_REPOS = ["configuration", "dotfiles", "nix-config", "old-vimfiles"]
-
-
-@dataclass
-class Commit:
-    hash: str
-    author_date: datetime
-    commit_date: datetime
-    repository: str
-
-    def show_patch(self):
-        subprocess.run(
-            [
-                "bash",
-                "-c",
-                "cd "
-                + self.repository
-                + " && git show --oneline "
-                + self.hash
-                + " | delta | head -n15",
-            ],
-            check=True,
-        )
-
-    def get_patch(self):
-        return subprocess.run(
-            [
-                "bash",
-                "-c",
-                "set -ev\n cd "
-                + self.repository
-                + " && rm -f xxx-patch\n "
-                + "if git rev-parse "
-                + self.hash
-                + "^2 >/dev/null 2>/dev/null\n then\n "
-                + "  git diff-tree -p -c "
-                + self.hash
-                + " > xxx-patch\n "
-                + "else\n"
-                + "  git diff "
-                + self.hash
-                + "^! > xxx-patch\n "
-                + "fi\n "
-                + "lsdiff xxx-patch"
-                + " | sort -u"
-                + r" | sed -e 's/[*?]/\\&/g'"
-                + " | xargs -I{} filterdiff --include={} --clean xxx-patch",
-            ],
-            capture_output=True,
-            check=True,
-        ).stdout
-
-    def apply_to(self, path: str):
-        patch = subprocess.run(
-            [
-                "bash",
-                "-c",
-                "cd "
-                + self.repository
-                + " && git format-patch -1 "
-                + self.hash
-                + " --stdout > ../"
-                + "/data/"
-                + self.repository
-                + ".patch",
-            ],
-            check=True,
-        )
-        subprocess.run(
-            [
-                "bash",
-                "-c",
-                "set -e\ncd "
-                + path
-                + " && git am --ignore-whitespace -3 ../data/"
-                + self.repository
-                + ".patch",
-            ],
-            check=True,
-            input=patch.stdout,
-        )
-
-
-@dataclass
-class Commits:
-    repository: str
-    commits: list[Commit]
+from .commit import Commit, Commits
+from .util import ALL_REPOS
 
 
 def read_data(repository: str) -> Commits:

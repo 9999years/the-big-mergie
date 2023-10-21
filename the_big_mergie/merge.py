@@ -1,8 +1,8 @@
 import subprocess
 
-from .statistics import ALL_REPOS, data_for_all_repos, Commit
-
-RESULT_REPO = "the_cake"
+from .statistics import data_for_all_repos, Commit
+from .util import ALL_REPOS, RESULT_REPO, bash
+from .color import BRIGHT_CYAN, CYAN, BOLD, RESET
 
 
 def commits_old_to_new() -> list[Commit]:
@@ -58,47 +58,52 @@ def check_chunks():
 
 
 def init_repo():
-    subprocess.run(
-        [
-            "bash",
-            "-c",
-            f"rm -rf {RESULT_REPO}"
-            + f" && mkdir {RESULT_REPO}"
-            + f" && cd {RESULT_REPO}"
-            + " && git init .",
-        ],
-        check=True,
+    bash(
+        rf"""
+        rm -rf {RESULT_REPO}
+        mkdir {RESULT_REPO}
+        cd {RESULT_REPO}
+        git init .
+        """
     )
     for repo in ALL_REPOS:
-        subprocess.run(
-            [
-                "bash",
-                "-c",
-                f"cd {RESULT_REPO}"
-                + " && git remote add "
-                + repo
-                + "../"
-                + repo
-                + " && git fetch "
-                + repo,
-            ],
-            check=True,
+        bash(
+            rf"""
+            echo "Initializing {repo}"
+            git remote add {repo} ../{repo}
+            git fetch {repo}
+            ../rerere-train.sh remotes/{repo}/main 2>1&>/dev/null
+            """,
+            cwd=RESULT_REPO,
         )
 
 
 def finish_up():
-    subprocess.run(
-        [
-            "bash",
-            "-c",
-            f"cd {RESULT_REPO}"
-            + " && FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --env-filter 'export GIT_COMMITTER_DATE=\"$GIT_AUTHOR_DATE\"'",
-        ]
+    bash(
+        rf"""
+        export FILTER_BRANCH_SQUELCH_WARNING=1
+        git filter-branch \
+            --env-filter 'export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"'
+        """,
+        cwd=RESULT_REPO,
     )
 
 
+def on_conflict(commit: Commit):
+    bash(
+        rf"""
+        git am --show-current-patch=diff
+        """,
+        cwd=RESULT_REPO,
+    )
+    #  subprocess.run(["fish"], cwd=RESULT_REPO, check=True)
+    #  subprocess.run(
+    #  ["bash", "-c", "git am --continue"], cwd=RESULT_REPO, check=True
+    #  )
+
+
 def main():
-    diff_hashes = set()
+    applied_commits: dict[int, Commit] = {}
     commits = commits_old_to_new()
     print(len(commits), "commits")
     init_repo()
@@ -106,43 +111,41 @@ def main():
     i = 0
     for commit in commits:
         i += 1
-        print(commit.hash, "in", commit.repository, "=" * 30)
-        print(i, "/", len(commits), "=", format(i / len(commits), ".2%"))
+        #  print(
+        #  f"{BRIGHT_CYAN}{BOLD}{commit.hash} in {commit.repository} {'=' * 30}{RESET}"
+        #  )
+        #  print(f"{CYAN}{i}/{len(commits)} = {format(i / len(commits), '.2%')}{RESET}")
+
         patch = commit.get_patch()
         if not patch:
-            print("skipping empty commit")
-            continue
-        patch_hash = hash(patch)
-        if patch_hash in diff_hashes:
             print(
-                "skipping",
-                commit.hash,
-                "from",
-                commit.repository,
-                "\t",
-                commit.author_date,
+                f"{BRIGHT_CYAN}{BOLD}Skipping empty commit {commit.hash} in {commit.repository}{RESET}"
             )
             continue
-        else:
-            #  print(
-            #  "applying",
-            #  commit.hash,
-            #  "from",
-            #  commit.repository,
-            #  "\t",
-            #  commit.author_date,
-            #  )
-            diff_hashes.add(patch_hash)
-            try:
-                commit.apply_to(RESULT_REPO)
-            except subprocess.CalledProcessError:
-                print("Fix the conflicts and exit to continue!")
-                subprocess.run(["fish"], cwd=RESULT_REPO, check=True)
-                subprocess.run(
-                    ["bash", "-c", "git am --continue"], cwd=RESULT_REPO, check=True
-                )
+        patch_hash = hash(patch)
+
+        if patch_hash in applied_commits:
+            print(
+                f"{BRIGHT_CYAN}{BOLD}Skipping already applied commit {commit.hash} in {commit.repository}{RESET}"
+            )
+            equiv = applied_commits[patch_hash]
+            print(
+                f"{BRIGHT_CYAN}{BOLD}Equivalent to {equiv.hash} in {equiv.repository}{RESET}"
+            )
+            continue
+
+        applied_commits[patch_hash] = commit
+        try:
+            commit.apply_to(RESULT_REPO)
+        except subprocess.CalledProcessError:
+            on_conflict(commit)
+            raise
+
     finish_up()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(str(e))
