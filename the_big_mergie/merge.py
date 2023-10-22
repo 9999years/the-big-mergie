@@ -10,18 +10,12 @@ from .color import BRIGHT_CYAN, CYAN, BOLD, RESET, RED
 def check_chunks():
     chunks = chunks_by_repository(commits_old_to_new())
 
-    for chunk in chunks:
-        if len(chunk) < 10:
-            c = chunk[0]
-            print(c.repository.upper(), "=" * (59 - len(c.repository)))
-            for c in chunk:
-                delta = ""
-                if c.author_date != c.commit_date:
-                    delta = "(" + str(c.commit_date - c.author_date) + ")"
-                print(c.hash[:8], c.author_date, delta)
-                c.show_patch()
-        else:
-            print("chunk:", len(chunk), "\t", chunk[0].repository)
+    for i, chunk in enumerate(chunks):
+        print("chunk:", len(chunk), "\t", chunk[0].repository)
+        for commit in chunk:
+            if commit.is_merge_commit():
+                print(commit)
+                commit.show_oneline()
 
 
 def init_repo():
@@ -115,6 +109,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue", action="store", dest="continue_hash")
     args = parser.parse_args()
+
+    check_chunks()
+    return
 
     commits = commits_old_to_new()
     print(len(commits), "commits")

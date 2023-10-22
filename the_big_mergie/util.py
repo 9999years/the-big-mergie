@@ -68,8 +68,10 @@ def bash(
     input: bytes | str | None = None,
     text: bool | None = None,
     cwd: str | None = None,
+    options: str | None = "evx",
 ) -> subprocess.CompletedProcess:
-    script = "set -evx\n" + script
+    if options:
+        script = f"set -{options}\n" + script
     result = subprocess.run(
         ["bash", "-c", script],
         text=text,

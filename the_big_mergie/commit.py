@@ -30,10 +30,22 @@ class Commit:
             cwd=self.repository,
         )
 
+    def show_oneline(self):
+        bash(
+            f"""
+            git show --no-patch --oneline {self.hash}
+            """,
+            options="e",
+            cwd=self.repository,
+        )
+
     def is_merge_commit(self) -> bool:
         return (
             bash(
-                f"git rev-parse {self.hash}^2 >/dev/null 2>/dev/null", check=False
+                f"git rev-parse {self.hash}^2 >/dev/null 2>/dev/null",
+                check=False,
+                cwd=self.repository,
+                options=None,
             ).returncode
             == 0
         )
