@@ -63,12 +63,12 @@ def chunks_by_repository(commits: list[Commit]) -> list[list[Commit]]:
     chunks: list[list[Commit]] = []
     chunk: list[Commit] = []
     for commit in commits:
-        chunk.append(commit)
         if last_repo is None:
             last_repo = commit.repository
         elif commit.repository != last_repo:
             chunks.append(chunk)
             chunk = []
             last_repo = commit.repository
+        chunk.append(commit)
     chunks.append(chunk)
     return chunks

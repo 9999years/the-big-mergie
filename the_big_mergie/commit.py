@@ -20,7 +20,7 @@ class Commit:
         return self.hash[:8]
 
     def __str__(self) -> str:
-        return f"{self.abbrhash} from {self.repository}"
+        return f"{self.abbrhash} from {self.repository} ({self.subject})"
 
     def show_patch(self):
         bash(
@@ -38,6 +38,16 @@ class Commit:
             options="e",
             cwd=self.repository,
         )
+
+    @functools.cached_property
+    def subject(self) -> str:
+        return bash(
+            f"git show --no-patch --format='format:%s' {self.hash}",
+            options=None,
+            capture_output=True,
+            text=True,
+            cwd=self.repository,
+        ).stdout
 
     def is_merge_commit(self) -> bool:
         return (

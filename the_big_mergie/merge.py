@@ -10,12 +10,23 @@ from .color import BRIGHT_CYAN, CYAN, BOLD, RESET, RED
 def check_chunks():
     chunks = chunks_by_repository(commits_old_to_new())
 
-    for i, chunk in enumerate(chunks):
-        print("chunk:", len(chunk), "\t", chunk[0].repository)
-        for commit in chunk:
-            if commit.is_merge_commit():
-                print(commit)
-                commit.show_oneline()
+    for _i, chunk in enumerate(chunks):
+        if len(chunk) == 1:
+            print("{", chunk[0], "}")
+        elif len(chunk) == 2:
+            print("{", chunk[0])
+            print(" ", chunk[-1], "}")
+        elif len(chunk) == 3:
+            print("{", chunk[0])
+            print(" ", chunk[1])
+            print(" ", chunk[-1], "}")
+        else:
+            print("{", chunk[0])
+            print(" ", f"... {len(chunk) - 2} ...")
+            print(" ", chunk[-1], "}")
+        #  for commit in chunk:
+        #  if commit.is_merge_commit():
+        #  print(commit)
 
 
 def init_repo():
@@ -108,10 +119,12 @@ def on_conflict(commit: Commit):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue", action="store", dest="continue_hash")
+    parser.add_argument("--chunks", action="store_true")
     args = parser.parse_args()
 
-    check_chunks()
-    return
+    if args.chunks:
+        check_chunks()
+        return
 
     commits = commits_old_to_new()
     print(len(commits), "commits")
@@ -144,7 +157,7 @@ def main():
         try:
             with open("data/commit", "w") as commit_file:
                 commit_file.write(commit.hash)
-            commit.apply_to(RESULT_REPO)
+            bash(f"git cherry-pick --allow-empty -m 1 {commit.hash}", cwd=RESULT_REPO)
         except subprocess.CalledProcessError:
             on_conflict(commit)
 
