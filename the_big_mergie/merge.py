@@ -65,25 +65,44 @@ def init_repo():
         mkdir {RESULT_REPO}
         cd {RESULT_REPO} || exit 1
         git init .
-        git switch -c rerere-training
+        git switch --orphan rerere-training
+        git commit --allow-empty -m "Train rerere cache"
         """
     )
     for repo in ALL_REPOS:
+        print(f"{CYAN}Initializing {repo}{RESET}")
         bash(
             rf"""
-            echo "Initializing {repo}"
             git remote add {repo} ../{repo}
             git fetch {repo}
-            ../rerere-train.sh remotes/{repo}/main >/dev/null 2>&1
+            ../rerere-train.sh remotes/{repo}/main
             """,
             cwd=RESULT_REPO,
+            capture_output=True,
         )
     bash(
         rf"""
-        git switch main
-        git log --oneline --graph
+        git switch --no-guess --orphan main
         """,
         cwd=RESULT_REPO,
+    )
+
+
+def save_rerere():
+    print(f"{CYAN}Saving rerere cache{RESET}")
+    bash(
+        rf"""
+        if [[ ! -d {RERE_CACHE} ]]; then
+            mkdir -p {RERE_CACHE}
+            pushd {RERE_CACHE} || exit 1
+            git init .
+            git remote add {RESULT_REPO} ../../{RESULT_REPO}
+            git fetch {RESULT_REPO}
+            popd || exit 1
+        fi
+        cd {RERE_CACHE} || exit 1
+        ../../rerere-train.sh remotes/{RESULT_REPO}/main
+        """
     )
 
 
@@ -112,29 +131,18 @@ def on_conflict(commit: Commit):
         response = input(f"{BOLD}{CYAN}fix, quit, skip? {RESET}").lower()
         if response.startswith("f"):
             subprocess.run(["fish"], cwd=RESULT_REPO, check=True)
-            break
+            result = bash("git am --continue", cwd=RESULT_REPO, check=False)
+            if result.returncode != 0:
+                print(f"{BOLD}{CYAN}Couldn't continue, did something go wrong?{RESET}")
+            else:
+                break
         elif response.startswith("q"):
-            raise RuntimeError
+            raise RuntimeError("quit")
         elif response.startswith("s"):
             bash("git am --skip", cwd=RESULT_REPO)
             break
         else:
             print("Uhh idk what to do with that sry haha")
-
-
-def save_rerere():
-    bash(
-        rf"""
-        if [[ ! -d {RERE_CACHE} ]]; then
-            mkdir -p {RERE_CACHE}
-            pushd {RERE_CACHE} || exit 1
-            git init .
-            popd || exit 1
-        fi
-        cd {RERE_CACHE} || exit 1
-        ../../rerere-train.sh main
-        """
-    )
 
 
 def main():
@@ -159,7 +167,6 @@ def main():
         print("Repo initialized")
 
     total_commits = len(commits)
-    skipped = 0
 
     i = 0
     for commit in commits:
@@ -167,23 +174,16 @@ def main():
         print(
             f"{BRIGHT_CYAN}{BOLD}{commit}{RESET} {CYAN}{i}/{total_commits}",
             "=",
-            f"{format((i - skipped) / len(commits), '.2%')},",
-            "skipped",
-            skipped,
+            f"{format(i / len(commits), '.2%')}",
             f"{BOLD}{'=' * 30}{RESET}",
         )
 
-        patch = commit.get_patch()
-        if not patch:
-            print(f"{BRIGHT_CYAN}{BOLD}Skipping empty commit {commit}{RESET}")
-            skipped += 1
-            continue
-
         try:
+            with open("data/commit", "w") as commit_file:
+                commit_file.write(commit.hash)
             commit.apply_to(RESULT_REPO)
         except subprocess.CalledProcessError:
             on_conflict(commit)
-            raise
 
     finish_up()
 
@@ -193,4 +193,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         save_rerere()
-        print(str(e))
+        print(e)

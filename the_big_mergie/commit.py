@@ -26,25 +26,22 @@ class Commit:
             cwd=self.repository,
         )
 
+    def is_merge_commit(self) -> bool:
+        return (
+            bash(
+                f"git rev-parse {self.hash}^2 >/dev/null 2>/dev/null", check=False
+            ).returncode
+            == 0
+        )
+
     def get_patch(self) -> bytes:
-        fname = f"../data/{self.repository}.patch"
         return bash(
             rf"""
-            rm -f {fname}
             if git rev-parse {self.hash}^2 >/dev/null 2>/dev/null; then
-                git diff-tree -p -c {self.hash} > {fname}
+                git diff-tree -p -c {self.hash}
             else
-                git diff {self.hash}^! > {fname}
+                git diff {self.hash}^!
             fi
-
-            lsdiff {fname} \
-                | sort -u \
-                | sed -e 's/[*?]/\\&/g' \
-                | xargs -I! filterdiff --include=! --clean {fname} \
-                | grep -e '^[-+@]' \
-                | grep -v '^---' \
-                | grep -v '^+++' \
-                | sed 's/ @@@ .*//'
             """,
             cwd=self.repository,
             capture_output=True,

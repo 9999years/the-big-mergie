@@ -23,8 +23,11 @@ def bash(
         input=input,
     )
     if check and result.returncode != 0:
+        directory = ""
+        if cwd is not None:
+            directory = f" in {cwd}"
         print(
-            f"{BRIGHT_RED}{BOLD}Bash script failed with exit code {result.returncode}:{RESET}"
+            f"{BRIGHT_RED}{BOLD}Bash script failed{directory} with exit code {result.returncode}:{RESET}"
         )
         print(f"{DIM}{script}{RESET}")
 
@@ -32,14 +35,21 @@ def bash(
         if isinstance(result.stdout, bytes):
             stdout = result.stdout.decode("utf-8", errors="backslashreplace")
         if stdout:
-            print("Stdout:", stdout)
+            print("Stdout:")
+            print(stdout)
 
         stderr = result.stderr
         if isinstance(result.stderr, bytes):
             stderr = result.stderr.decode("utf-8", errors="backslashreplace")
         if stderr:
-            print("Stderr:", stderr)
+            print("Stderr:")
+            print(stderr)
 
-        raise RuntimeError
+        raise subprocess.CalledProcessError(
+            returncode=result.returncode,
+            cmd="bash",
+            output=result.stdout,
+            stderr=result.stderr,
+        )
 
     return result
