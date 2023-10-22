@@ -29,6 +29,7 @@ def check_chunks():
         for commit in chunk:
             if commit.is_merge_commit():
                 merge_commits += 1
+        input()
 
     print(merge_commits, "merge commits")
 
@@ -126,10 +127,6 @@ def main():
     parser.add_argument("--chunks", action="store_true")
     args = parser.parse_args()
 
-    if args.chunks:
-        check_chunks()
-        return
-
     commits = commits_old_to_new()
     print(len(commits), "commits")
 
@@ -145,6 +142,10 @@ def main():
     else:
         init_repo()
         print("Repo initialized")
+
+    if args.chunks:
+        check_chunks()
+        return
 
     total_commits = len(commits)
 
