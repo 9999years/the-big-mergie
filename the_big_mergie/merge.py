@@ -10,6 +10,8 @@ from .color import BRIGHT_CYAN, CYAN, BOLD, RESET, RED
 def check_chunks():
     chunks = chunks_by_repository(commits_old_to_new())
 
+    merge_commits = 0
+
     for _i, chunk in enumerate(chunks):
         if len(chunk) == 1:
             print("{", chunk[0], "}")
@@ -24,9 +26,11 @@ def check_chunks():
             print("{", chunk[0])
             print(" ", f"... {len(chunk) - 2} ...")
             print(" ", chunk[-1], "}")
-        #  for commit in chunk:
-        #  if commit.is_merge_commit():
-        #  print(commit)
+        for commit in chunk:
+            if commit.is_merge_commit():
+                merge_commits += 1
+
+    print(merge_commits, "merge commits")
 
 
 def init_repo():
