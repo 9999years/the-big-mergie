@@ -1,7 +1,11 @@
 from datetime import datetime
 from dataclasses import dataclass
+import re
+import functools
 
 from .util import bash
+
+NEW_FILE_RE = re.compile(r"\(new( ?[+-]l)?( ?[+-]x)?\)")
 
 
 @dataclass
@@ -58,6 +62,47 @@ class Commit:
             cwd=self.repository,
             capture_output=True,
         )
+
+    @functools.cached_property
+    def show(self) -> str:
+        return bash(
+            f"git show --stat --compact-summary {self.hash}",
+            capture_output=True,
+            cwd=self.repository,
+            text=True,
+        ).stdout
+
+    @functools.cached_property
+    def compact_summary(self) -> str:
+        return bash(
+            f"git show --stat=500,490 --compact-summary --format='' {self.hash}",
+            capture_output=True,
+            cwd=self.repository,
+            text=True,
+        ).stdout
+
+    @functools.cached_property
+    def nice_compact_summary(self) -> str:
+        ret = []
+        for line in self.compact_summary.splitlines():
+            if "|" in line:
+                tokens = line.split("|")
+                ret.append(tokens[0].strip())
+            else:
+                ret.append(line)
+        return "\n".join(ret)
+
+    def created_any_files(self) -> bool:
+        for line in self.compact_summary.splitlines():
+            if NEW_FILE_RE.search(line):
+                return True
+        return False
+
+    def renamed_any_files(self) -> bool:
+        for line in self.compact_summary.splitlines():
+            if " => " in line:
+                return True
+        return False
 
 
 @dataclass

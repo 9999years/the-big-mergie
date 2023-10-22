@@ -1,44 +1,10 @@
 import subprocess
 import argparse
 
-from .statistics import data_for_all_repos, Commit
+from .commit import Commit
+from .data import chunks_by_repository, commits_old_to_new
 from .util import ALL_REPOS, RERE_CACHE, RESULT_REPO, bash, RERE_CACHE
 from .color import BRIGHT_CYAN, CYAN, BOLD, RESET, RED
-
-
-def commits_old_to_new() -> list[Commit]:
-    data = data_for_all_repos()
-    all_commits: list[Commit] = []
-    for repo in data:
-        if repo.repository == "configuration":
-            # Only the first few commits are unique.
-            for commit in repo.commits:
-                all_commits.append(commit)
-                if commit.hash == "b21f4191e24d28b2ba70b26a00965206ac855e8d":
-                    # This is the last unique commit.
-                    break
-        else:
-            all_commits.extend(repo.commits)
-
-    all_commits.sort(key=lambda commit: commit.author_date)
-
-    return all_commits
-
-
-def chunks_by_repository(commits: list[Commit]) -> list[list[Commit]]:
-    last_repo = None
-    chunks: list[list[Commit]] = []
-    chunk: list[Commit] = []
-    for commit in commits:
-        chunk.append(commit)
-        if last_repo is None:
-            last_repo = commit.repository
-        elif commit.repository != last_repo:
-            chunks.append(chunk)
-            chunk = []
-            last_repo = commit.repository
-    chunks.append(chunk)
-    return chunks
 
 
 def check_chunks():
