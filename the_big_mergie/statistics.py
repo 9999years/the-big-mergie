@@ -45,7 +45,7 @@ def main() -> None:
     created = 0
     renamed = 0
     for commit in commits:
-        if commit.renamed_any_files() and commit.hash not in IGNORE_RENAME_COMMITS:
+        if commit.renamed_any_files and commit.hash not in IGNORE_RENAME_COMMITS:
             print("=" * 80)
             print(commit.show)
             renamed += 1

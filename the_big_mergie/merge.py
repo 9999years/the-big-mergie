@@ -9,6 +9,8 @@ Ideas:
 
 import subprocess
 import argparse
+from collections import deque, defaultdict
+from typing import DefaultDict
 
 from .commit import Commit
 from .data import chunks_by_repository, commits_old_to_new
@@ -21,7 +23,7 @@ def check_chunks():
 
     merge_commits = 0
 
-    for _i, chunk in enumerate(chunks):
+    for _, chunk in enumerate(chunks):
         if len(chunk) == 1:
             print("{", chunk[0], "}")
         elif len(chunk) == 2:
@@ -36,11 +38,62 @@ def check_chunks():
             print(" ", f"... {len(chunk) - 2} ...")
             print(" ", chunk[-1], "}")
         for commit in chunk:
-            if commit.is_merge_commit():
+            if commit.is_merge_commit:
                 merge_commits += 1
         input()
 
     print(merge_commits, "merge commits")
+
+
+def walk_chunks(repo):
+    # Chunks start with a commit with one parent.
+    # Chunks end with the first commit
+
+    # Hashes to hashes.
+    parents: DefaultDict[Commit, set[Commit]] = defaultdict(set)
+    children: DefaultDict[Commit, set[Commit]] = defaultdict(set)
+
+    chunk_starts: set[Commit] = set()
+
+    head = Commit.from_repo_rev(repo=repo)
+    print("main is", head)
+
+    commits: deque[Commit] = deque([head])
+    seen: set[Commit] = {head}
+    i = 0
+
+    while commits:
+        i += 1
+
+        commit = commits.pop()
+        if i % 100:
+            print("Working on commit", commit.hash, "seen", len(seen))
+        seen.add(commit)
+        commits.extend(commit for commit in commit.parents if commit not in seen)
+
+        parents[commit].update(commit.parents)
+        for parent in commit.parents:
+            children[parent].add(commit)
+
+        if len(commit.parents) == 1:
+            chunk_starts.add(commit)
+
+    print("Found", len(chunk_starts), "chunk starts from", len(seen), "commits")
+
+    for start in chunk_starts:
+        seen = {start}
+        commits.clear()
+        commits.append(start)
+
+        while commits:
+            commit = commits.pop()
+            seen.add(commit)
+            commits.extend(
+                commit for commit in children[commit] if commit.hash not in seen
+            )
+
+            # uhh
+            # so how do we detect a chunk end?
 
 
 def init_repo():
@@ -134,7 +187,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue", action="store", dest="continue_hash")
     parser.add_argument("--chunks", action="store_true")
+    parser.add_argument("--no-init", action="store_false", dest="init")
     args = parser.parse_args()
+
+    if args.chunks:
+        #  check_chunks()
+        walk_chunks("dotfiles")
+        return
 
     commits = commits_old_to_new()
     print(len(commits), "commits")
@@ -149,12 +208,9 @@ def main():
             elif commit.hash == args.continue_hash:
                 found_commit = True
     else:
-        init_repo()
-        print("Repo initialized")
-
-    if args.chunks:
-        check_chunks()
-        return
+        if args.init:
+            init_repo()
+            print("Repo initialized")
 
     total_commits = len(commits)
 
@@ -183,4 +239,5 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         save_rerere()
-        print(e)
+        #  print(e)
+        raise

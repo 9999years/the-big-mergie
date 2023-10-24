@@ -60,7 +60,6 @@ IGNORE_RENAME_COMMITS = set(
     """.strip().split()
 )
 
-
 def bash(
     script: str,
     check: bool = True,

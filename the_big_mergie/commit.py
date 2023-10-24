@@ -2,18 +2,31 @@ from datetime import datetime
 from dataclasses import dataclass
 import re
 import functools
+from typing import Self
 
 from .util import bash
 
 NEW_FILE_RE = re.compile(r"\(new( ?[+-]l)?( ?[+-]x)?\)")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Commit:
     hash: str
-    author_date: datetime
-    commit_date: datetime
     repository: str
+    author_date: datetime | None = None
+    commit_date: datetime | None = None
+
+    def __hash__(self) -> int:
+        return hash(self.hash)
+
+    @classmethod
+    def from_repo_rev(cls, repo: str, rev: str = "main") -> Self:
+        return cls(
+            hash=bash(
+                f"git rev-parse {rev}", capture_output=True, text=True, cwd=repo
+            ).stdout.strip(),
+            repository=repo,
+        )
 
     @property
     def abbrhash(self) -> str:
@@ -49,6 +62,17 @@ class Commit:
             cwd=self.repository,
         ).stdout
 
+    @functools.cached_property
+    def parents(self) -> list[Self]:
+        hashes = bash(
+            f"git rev-parse {self.hash}^@",
+            capture_output=True,
+            text=True,
+            cwd=self.repository,
+        ).stdout.split()
+        return [Commit(hash=hash, repository=self.repository) for hash in hashes]
+
+    @functools.cached_property
     def is_merge_commit(self) -> bool:
         return (
             bash(
@@ -60,6 +84,7 @@ class Commit:
             == 0
         )
 
+    @functools.cached_property
     def get_patch(self) -> bytes:
         return bash(
             rf"""
@@ -114,12 +139,14 @@ class Commit:
                 ret.append(line)
         return "\n".join(ret)
 
+    @functools.cached_property
     def created_any_files(self) -> bool:
         for line in self.compact_summary.splitlines():
             if NEW_FILE_RE.search(line):
                 return True
         return False
 
+    @functools.cached_property
     def renamed_any_files(self) -> bool:
         for line in self.compact_summary.splitlines():
             if " => " in line:
