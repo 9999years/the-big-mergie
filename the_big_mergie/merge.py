@@ -1,3 +1,12 @@
+"""
+Ideas:
+- group commits into chunk by the dag finding chokepoints where all the commits
+  in the chunk share one minimal common ancestor
+- multi-phase rebase:
+  1. rename paths
+  2. join repositories together and interleave chunks
+"""
+
 import subprocess
 import argparse
 
